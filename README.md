@@ -67,7 +67,7 @@ When solving BLD (blindfolded) you need to **memorize long strings of letters** 
 
 If you have ideas, bug reports, or want to suggest features:  
 - Contact me via project email --> blindtrainer@proton.me
-- Open an [issue on GitHub](https://github.com/YOUR_USERNAME/blind-trainer/issues)  
+- Open an [issue on GitHub](https://github.com/Tim-977/blind-trainer/issues)  
 
 
 
