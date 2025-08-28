@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Blind Trainer</title>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<style>
+  :root{
+    --accent:#0b63c7;
+    --bg:#fafafa;
+    --text:#1f2937;
+    --muted:#6b7280;
+    --line:#e5e7eb;
+    --card:#ffffff;
+    --secondary-bg:#f1f5f9;
+    --secondary-border:#dbe3ea;
+    --input-bg:#ffffff;
+  }
+  [data-theme="dark"]{
+    --accent:#60a5fa;
+    --bg:#0b1020;
+    --text:#e5e7eb;
+    --muted:#9aa7bf;
+    --line:#27324a;
+    --card:#0f172a;
+    --secondary-bg:#19233a;
+    --secondary-border:#27324a;
+    --input-bg:#0b1426;
+  }
+
+  /* smooth theme transition */
+  html, body, #blindTrainer, fieldset, input, select, button { transition: background-color .2s ease, color .2s ease, border-color .2s ease; }
+
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text)}
+  #blindTrainer{max-width:760px;margin:1rem auto;border:1px solid var(--line);background:var(--card);border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+  #blindTrainer header{padding:1rem 1.25rem;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap}
+  #blindTrainer h2{margin:0;font-size:1.25rem}
+  #trainerBody{padding:1rem 1.25rem}
+  .row{display:flex;gap:1rem;flex-wrap:wrap}
+  fieldset{border:1px solid var(--line);padding:.75rem;border-radius:8px;min-width:260px;flex:1;background:transparent}
+  legend{padding:0 .25rem;font-weight:600;color:var(--muted)}
+  label{display:block;margin:.25rem 0}
+  .inline{display:inline-block;margin-right:.75rem}
+  .muted{color:var(--muted);font-size:.9rem}
+  .controls{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem}
+  button{padding:.45rem .8rem;border:0;border-radius:7px;background:var(--accent);color:#fff;cursor:pointer}
+  button.secondary{background:var(--secondary-bg);color:var(--text);border:1px solid var(--secondary-border)}
+  button:disabled{opacity:.55;cursor:not-allowed}
+  input[type=number],select,input[type=text]{padding:.35rem .5rem;border:1px solid var(--secondary-border);background:var(--input-bg);color:var(--text);border-radius:6px;width:100%;max-width:140px}
+  .columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+  .section{border-top:1px dashed var(--line);margin-top:1rem;padding-top:1rem}
+  .memo-seq{font-size:1.6rem;letter-spacing:.35rem;font-weight:700;white-space:pre-wrap}
+  .feedback{white-space:pre-wrap;margin-top:.35rem}
+  .stats{color:var(--text);margin-top:.5rem;font-size:.95rem}
+  .correct{color:#10b981;font-weight:700}
+  .wrong{color:#ef4444;font-weight:700}
+  .note{font-size:.85rem;color:var(--muted);margin-top:.25rem}
+  .foot{padding:0 1.25rem 1rem;color:var(--muted)}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+  /* theme pill button */
+  .theme-btn{
+    display:flex;align-items:center;gap:.5rem;background:var(--secondary-bg);
+    color:var(--text);border:1px solid var(--secondary-border);
+    padding:.35rem .6rem;border-radius:999px;cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div id="blindTrainer" role="region" aria-label="Blindfold Memorisation Trainer">
+  <header>
+    <h2>Blind Trainer</h2>
+    <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+      <div class="muted">zero build • by Timbrzm for J Perm</div>
+      <button id="themeBtn" class="theme-btn" title="Toggle theme">🌙 Dark</button>
+    </div>
+  </header>
+  <div id="trainerBody">
+
+    <!-- SETTINGS -->
+    <div id="settings">
+      <div class="row">
+        <fieldset>
+          <legend>Letter set</legend>
+          <label class="inline"><input type="radio" name="letterSet" value="edges"> Edges only</label>
+          <label class="inline"><input type="radio" name="letterSet" value="corners"> Corners only</label>
+          <label class="inline"><input type="radio" name="letterSet" value="both" checked> Both (edges &amp; corners)</label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Choose the buffer <span class="muted">(letters from this piece are excluded)</span></legend>
+          <div class="columns">
+            <div>
+              <label class="muted">Edge buffer piece</label>
+              <select id="bufferEdge" aria-label="Edge buffer piece"></select>
+            </div>
+            <div>
+              <label class="muted">Corner buffer piece</label>
+              <select id="bufferCorner" aria-label="Corner buffer piece"></select>
+            </div>
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="row">
+        <fieldset>
+          <legend>String range (length)</legend>
+          <div class="columns">
+            <div>
+              <div class="muted">Edges (1–22)</div>
+              <div class="row" style="align-items:center">
+                <label class="inline">Min <input id="edgesMin" type="number" min="1" max="22" value="5"></label>
+                <label class="inline">Max <input id="edgesMax" type="number" min="1" max="22" value="11"></label>
+              </div>
+            </div>
+            <div>
+              <div class="muted">Corners (1–14)</div>
+              <div class="row" style="align-items:center">
+                <label class="inline">Min <input id="cornersMin" type="number" min="1" max="14" value="3"></label>
+                <label class="inline">Max <input id="cornersMax" type="number" min="1" max="14" value="7"></label>
+              </div>
+            </div>
+          </div>
+          <div class="controls">
+            <span class="muted">Presets:</span>
+            <button class="secondary" data-preset="easy">Easy</button>
+            <button class="secondary" data-preset="normal">Normal</button>
+            <button class="secondary" data-preset="extreme">Extreme</button>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Extras</legend>
+          <label><input type="radio" name="distraction" value="yes" checked> Include distraction task</label>
+          <label><input type="radio" name="distraction" value="no"> No distraction</label>
+        </fieldset>
+      </div>
+
+      <div class="controls">
+        <button id="startBtn">Start</button>
+        <span id="settingsSummary" class="muted"></span>
+      </div>
+    </div>
+
+    <!-- MEMO -->
+    <div id="memo" class="section" style="display:none">
+      <div id="memoText" class="memo-seq mono"></div>
+      <div class="controls">
+        <button id="readyBtn">Ready</button>
+      </div>
+    </div>
+
+    <!-- DISTRACTION -->
+    <div id="math" class="section" style="display:none">
+      <div class="mono" id="mathProblem"></div>
+      <div class="controls">
+        <input type="number" id="mathAnswer" placeholder="Answer"/>
+        <button id="mathCheckBtn">Check</button>
+      </div>
+      <div id="mathFeedback" class="feedback"></div>
+    </div>
+
+    <!-- RECALL -->
+    <div id="recall" class="section" style="display:none">
+      <div id="edgesRecall" style="display:none">
+        <label>Type the <strong>edges</strong> string</label>
+        <input type="text" id="edgesInput" class="mono"/>
+      </div>
+      <div id="cornersRecall" style="display:none;margin-top:.5rem">
+        <label>Type the <strong>corners</strong> string</label>
+        <input type="text" id="cornersInput" class="mono"/>
+      </div>
+      <div class="controls">
+        <button id="submitRecallBtn">Submit</button>
+      </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div id="results" class="section" style="display:none">
+      <div id="resultsFeedback" class="feedback"></div>
+      <div id="stats" class="stats"></div>
+      <div class="controls">
+        <button id="nextBtn">Next round</button>
+        <button id="resetBtn" class="secondary" style="margin-left:auto">Reset stats</button>
+      </div>
+    </div>
+
+  </div>
+  <div class="foot muted">
+    Max theoretical lengths: edges 22 (all flips), corners 14 (all twists).
+  </div>
+</div>
+
+<script>
+(function($){
+  // ===== Scheme (piece → stickers) =====
+  const EDGES = {
+    "UB":["A","Q"], "UR":["B","M"], "UF":["C","I"], "UL":["D","E"],
+    "FL":["L","F"], "FR":["J","P"], "BL":["R","H"], "BR":["T","N"],
+    "DF":["U","K"], "DR":["V","O"], "DB":["W","S"], "DL":["X","G"]
+  };
+  const CORNERS = {
+    "UBL":["A","R","E"], "UBR":["B","Q","N"], "UFR":["C","M","J"], "UFL":["D","F","I"],
+    "DFL":["U","L","G"], "DFR":["V","K","P"], "DBR":["W","O","T"], "DBL":["X","S","H"]
+  };
+  const EDGE_KEYS = Object.keys(EDGES);
+  const CORNER_KEYS = Object.keys(CORNERS);
+
+  // ===== State =====
+  let useSet="both";
+  let bufferEdge="UR", bufferCorner="UBL";
+  let rangeE={min:5,max:11}, rangeC={min:3,max:7};
+  let withDistraction=true;
+  let pairProb=0.28;
+
+  let seqE=[], seqC=[];
+  let memoStart=null, mathAns=null;
+
+  // ===== Stats =====
+  let stats = {correct:0, attempted:0, solved:0, memoTimes:[]};
+  try { const s = JSON.parse(localStorage.getItem("blindWebStatsV3")); if(s) stats=s; } catch(e){}
+  const saveStats = ()=>localStorage.setItem("blindWebStatsV3", JSON.stringify(stats));
+
+  // ===== THEME =====
+  function applyTheme(theme){
+    document.documentElement.setAttribute("data-theme", theme);
+    // helps native form controls adapt
+    document.documentElement.style.colorScheme = theme;
+    localStorage.setItem("bt_theme", theme);
+    $("#themeBtn").text(theme==="dark" ? "☀️ Light" : "🌙 Dark");
+  }
+  function initTheme(){
+    const saved = localStorage.getItem("bt_theme");
+    const initial = saved || "dark";  // default to dark
+    applyTheme(initial);
+    $("#themeBtn").on("click", function(){
+      const now = document.documentElement.getAttribute("data-theme");
+      applyTheme(now==="dark" ? "light" : "dark");
+    });
+  }
+
+  // ===== Helpers =====
+  const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+  const randint = (a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const median = xs => !xs.length ? null : (t=>t.length%2?t[(t.length-1)/2]:(t[t.length/2-1]+t[t.length/2])/2)(xs.slice().sort((x,y)=>x-y));
+  const fmtTime = ms => ms==null?"—":(()=>{const s=ms/1000,m=Math.floor(s/60),r=(s-m*60).toFixed(1).padStart(4,"0");return `${m}:${r}`})();
+  const nonBufferPieces = (keys, bufferKey) => keys.filter(k=>k!==bufferKey);
+
+  function chooseSingle(pieces, pieceKeys, counts, lastPiece, lastLetter){
+    const keys = pieceKeys.slice();
+    for(let guard=0; guard<200 && keys.length; guard++){
+      const pk = pick(keys);
+      if(pk === lastPiece) { keys.splice(keys.indexOf(pk),1); continue; }
+      const opts = pieces[pk].filter(s => s !== lastLetter && (counts[s]||0) < 2);
+      if(opts.length) return {letters:[pick(opts)], piece:pk};
+      keys.splice(keys.indexOf(pk),1);
+    }
+    return null;
+  }
+  function choosePair(pieces, pieceKeys, counts, lastPiece, lastLetter){
+    const keys = pieceKeys.slice();
+    for(let guard=0; guard<200 && keys.length; guard++){
+      const pk = pick(keys);
+      if(pk === lastPiece) { keys.splice(keys.indexOf(pk),1); continue; }
+      const stickers = pieces[pk];
+      let pair = (stickers.length===2)
+        ? stickers.slice()
+        : (()=>{const ix=[0,1,2], a=pick(ix), b=pick(ix.filter(i=>i!==a)); return [stickers[a], stickers[b]];})();
+      if(pair[0]===pair[1]) continue;
+      if((counts[pair[0]]||0)>=2 || (counts[pair[1]]||0)>=2){ keys.splice(keys.indexOf(pk),1); continue; }
+      if(pair[0]===lastLetter) [pair[0],pair[1]]=[pair[1],pair[0]];
+      if(pair[0]===lastLetter){ keys.splice(keys.indexOf(pk),1); continue; }
+      return {letters:pair, piece:pk};
+    }
+    return null;
+  }
+  function generateSequence(pieces, bufferKey, targetLen, pairP=0.28){
+    const pieceKeys = nonBufferPieces(Object.keys(pieces), bufferKey);
+    const out=[], outPieces=[], counts={}; let guard=0;
+    while(out.length < targetLen && guard++ < 10000){
+      const remain = targetLen - out.length;
+      const lastLetter = out.length ? out[out.length-1] : null;
+      const lastPiece  = outPieces.length ? outPieces[outPieces.length-1] : null;
+      const tryPairFirst = remain>=2 && Math.random()<pairP;
+      let choice = tryPairFirst
+        ? choosePair(pieces, pieceKeys, counts, lastPiece, lastLetter)
+        : chooseSingle(pieces, pieceKeys, counts, lastPiece, lastLetter);
+      if(!choice){
+        choice = tryPairFirst
+          ? chooseSingle(pieces, pieceKeys, counts, lastPiece, lastLetter)
+          : choosePair(pieces, pieceKeys, counts, lastPiece, lastLetter);
+      }
+      if(!choice) break;
+      for(const L of choice.letters){
+        if(out.length && out[out.length-1]===L){ choice=null; break; } // no identical adjacency
+        out.push(L); outPieces.push(choice.piece);
+        counts[L]=(counts[L]||0)+1;
+      }
+      if(!choice) break;
+    }
+    return out;
+  }
+
+  // ===== UI glue =====
+  function fillPieceSelects(){
+    const eSel=$("#bufferEdge").empty();
+    const cSel=$("#bufferCorner").empty();
+    EDGE_KEYS.forEach(k=>eSel.append(`<option ${k===bufferEdge?"selected":""}>${k}</option>`));
+    CORNER_KEYS.forEach(k=>cSel.append(`<option ${k===bufferCorner?"selected":""}>${k}</option>`));
+  }
+  function syncSummary(){
+    $("#settingsSummary").text(
+      `Set: ${useSet} • Edge buffer ${bufferEdge} • Corner buffer ${bufferCorner} • E ${rangeE.min}-${rangeE.max} • C ${rangeC.min}-${rangeC.max} • Distraction ${withDistraction?"ON":"OFF"}`
+    );
+  }
+  function setPreset(name){
+    if(name==="easy"){ rangeE={min:4,max:8};  rangeC={min:2,max:4};  pairProb=0.22; }
+    if(name==="normal"){ rangeE={min:9,max:14}; rangeC={min:5,max:8};  pairProb=0.28; }
+    if(name==="extreme"){ rangeE={min:15,max:22};rangeC={min:9,max:14}; pairProb=0.34; }
+    $("#edgesMin").val(rangeE.min); $("#edgesMax").val(rangeE.max);
+    $("#cornersMin").val(rangeC.min); $("#cornersMax").val(rangeC.max);
+    syncSummary();
+  }
+  function validateRanges(){
+    const eMin = Math.max(1, Math.min(22, parseInt($("#edgesMin").val(),10)||1));
+    const eMax = Math.max(1, Math.min(22, parseInt($("#edgesMax").val(),10)||1));
+    const cMin = Math.max(1, Math.min(14, parseInt($("#cornersMin").val(),10)||1));
+    const cMax = Math.max(1, Math.min(14, parseInt($("#cornersMax").val(),10)||1));
+    rangeE={min:Math.min(eMin,eMax),max:Math.max(eMin,eMax)};
+    rangeC={min:Math.min(cMin,cMax),max:Math.max(cMin,cMax)};
+    $("#edgesMin").val(rangeE.min); $("#edgesMax").val(rangeE.max);
+    $("#cornersMin").val(rangeC.min); $("#cornersMax").val(rangeC.max);
+  }
+  const medianFmt = xs => { const a = !xs.length?null:median(xs); return a==null?"—":fmtTime(a); };
+  function updateStatsUI(){
+    const acc = stats.attempted ? Math.round(100*stats.correct/stats.attempted) : 0;
+    const last = stats.memoTimes.at(-1) ?? null;
+    const avg  = stats.memoTimes.length ? Math.round(stats.memoTimes.reduce((a,b)=>a+b,0)/stats.memoTimes.length) : null;
+    const best = stats.memoTimes.length ? Math.min(...stats.memoTimes) : null;
+    $("#stats").html(
+      `Accuracy: <strong>${acc}%</strong> • Full solves: <strong>${stats.solved}</strong><br>`+
+      `Memo — last: <strong>${fmtTime(last)}</strong>, median: <strong>${medianFmt(stats.memoTimes)}</strong>, avg: <strong>${fmtTime(avg)}</strong>, best: <strong>${fmtTime(best)}</strong>`
+    );
+  }
+
+  // ===== Flow =====
+  function startRound(){
+    validateRanges();
+    useSet = $("input[name=letterSet]:checked").val();
+    bufferEdge = $("#bufferEdge").val();
+    bufferCorner = $("#bufferCorner").val();
+    withDistraction = $("input[name=distraction]:checked").val()==="yes";
+
+    seqE=[]; seqC=[];
+    if(useSet==="edges" || useSet==="both"){
+      const lenE = randint(rangeE.min, rangeE.max);
+      seqE = generateSequence(EDGES, bufferEdge, lenE, pairProb);
+    }
+    if(useSet==="corners" || useSet==="both"){
+      const lenC = randint(rangeC.min, rangeC.max);
+      seqC = generateSequence(CORNERS, bufferCorner, lenC, pairProb);
+    }
+
+    const lines=[];
+    if(seqE.length) lines.push(`Edges: ${seqE.join(" ")}`);
+    if(seqC.length) lines.push(`Corners: ${seqC.join(" ")}`);
+    $("#memoText").text(lines.join("\n"));
+    $("#results,#recall,#math").hide();
+    $("#memo").show();
+    memoStart = performance.now();
+  }
+
+  function onReady(){
+    if(memoStart!=null){
+      stats.memoTimes.push(Math.max(0, performance.now()-memoStart));
+      saveStats();
+    }
+    $("#memo").hide();
+    if(withDistraction){
+      const a=randint(1000,9999), b=randint(1000,9999);
+      mathAns=a+b;
+      $("#mathProblem").text(`${a} + ${b} = ?`);
+      $("#mathAnswer").val(""); $("#mathFeedback").text("");
+      $("#math").show();
+    }else{
+      showRecall();
+    }
+  }
+
+  function checkMath(){
+    const val = parseInt($("#mathAnswer").val(),10);
+    if(Number.isNaN(val)){ $("#mathFeedback").text("Enter a number."); return; }
+    $("#mathFeedback").text(val===mathAns ? "Correct!" : `Incorrect. The answer was ${mathAns}.`);
+    setTimeout(()=>{ $("#math").hide(); showRecall(); }, 700);
+  }
+
+  function showRecall(){
+    $("#edgesInput").val(""); $("#cornersInput").val("");
+    $("#edgesRecall").toggle(seqE.length>0);
+    $("#cornersRecall").toggle(seqC.length>0);
+    $("#recall").show();
+  }
+
+  function evaluateRecall(){
+    function padTo(arr, n){ while(arr.length<n) arr.push(" "); return arr; }
+    function render(expected, givenArr, label){
+      const g = padTo(givenArr.slice(0, expected.length), expected.length);
+      const c1=[], c2=[]; let hits=0;
+      for(let i=0;i<expected.length;i++){
+        const e = expected[i];
+        const gch = g[i];
+        if(e === gch){
+          hits++;
+          c1.push(`<span class='correct'>${e.toLowerCase()}</span>`);
+          c2.push(`<span class='correct'>${gch.toLowerCase()}</span>`);
+        }else{
+          const shown = (gch===" "||gch==="") ? "·" : gch.toUpperCase();
+          c1.push(`<span class='wrong'>${e}</span>`);
+          c2.push(`<span class='wrong'>${shown}</span>`);
+        }
+      }
+      return {html:`${label}\nCorrect: ${c1.join(" ")}\nYours:   ${c2.join(" ")}\nHits: ${hits}/${expected.length}`, hits};
+    }
+
+    let fb=[], hits=0, total=0, perfect=true;
+
+    if(seqE.length){
+      const gArr = (($("#edgesInput").val()||"").toUpperCase()).split("");
+      const r = render(seqE, gArr, "Edges");
+      fb.push(r.html); hits+=r.hits; total+=seqE.length; perfect = perfect && (r.hits===seqE.length);
+    }
+    if(seqC.length){
+      const gArr = (($("#cornersInput").val()||"").toUpperCase()).split("");
+      const r = render(seqC, gArr, "Corners");
+      fb.push(r.html); hits+=r.hits; total+=seqC.length; perfect = perfect && (r.hits===seqC.length);
+    }
+
+    stats.correct += hits; stats.attempted += total; if(perfect) stats.solved++;
+    saveStats();
+
+    const acc = total ? Math.round(100*hits/total) : 0;
+    const last = stats.memoTimes.at(-1) ?? null;
+    $("#resultsFeedback").html(fb.join("\n\n")+`\n\nOverall Accuracy: ${acc}%`+(last!=null?`\nMemo time: ${fmtTime(last)}`:""));
+    $("#recall").hide(); $("#results").show(); updateStatsUI();
+  }
+
+  function resetStats(){
+    if(!confirm("Reset all stats?")) return;
+    stats={correct:0,attempted:0,solved:0,memoTimes:[]};
+    saveStats(); updateStatsUI();
+  }
+
+  // ===== init =====
+  $(function(){
+    // theme must be initialized first so the first paint uses the saved choice
+    initTheme();
+
+    const eSel=$("#bufferEdge").empty(), cSel=$("#bufferCorner").empty();
+    EDGE_KEYS.forEach(k=>eSel.append(`<option ${k===bufferEdge?"selected":""}>${k}</option>`));
+    CORNER_KEYS.forEach(k=>cSel.append(`<option ${k===bufferCorner?"selected":""}>${k}</option>`));
+    $("#edgesMin").val(rangeE.min); $("#edgesMax").val(rangeE.max);
+    $("#cornersMin").val(rangeC.min); $("#cornersMax").val(rangeC.max);
+
+    const syncSummary=()=>$("#settingsSummary").text(
+      `Set: ${useSet} • Edge buffer ${bufferEdge} • Corner buffer ${bufferCorner} • E ${rangeE.min}-${rangeE.max} • C ${rangeC.min}-${rangeC.max} • Distraction ${withDistraction?"ON":"OFF"}`
+    );
+    updateStatsUI(); syncSummary();
+
+    $("input[name=letterSet]").on("change", function(){ useSet=this.value; syncSummary(); });
+    $("#bufferEdge").on("change", function(){ bufferEdge=this.value; syncSummary(); });
+    $("#bufferCorner").on("change", function(){ bufferCorner=this.value; syncSummary(); });
+    $("input[name=distraction]").on("change", function(){ withDistraction=(this.value==="yes"); syncSummary(); });
+    $("#edgesMin,#edgesMax,#cornersMin,#cornersMax").on("input", function(){
+      const eMin=Math.max(1,Math.min(22,parseInt($("#edgesMin").val(),10)||1)),
+            eMax=Math.max(1,Math.min(22,parseInt($("#edgesMax").val(),10)||1)),
+            cMin=Math.max(1,Math.min(14,parseInt($("#cornersMin").val(),10)||1)),
+            cMax=Math.max(1,Math.min(14,parseInt($("#cornersMax").val(),10)||1));
+      rangeE={min:Math.min(eMin,eMax),max:Math.max(eMin,eMax)};
+      rangeC={min:Math.min(cMin,cMax),max:Math.max(cMin,cMax)};
+      $("#edgesMin").val(rangeE.min); $("#edgesMax").val(rangeE.max);
+      $("#cornersMin").val(rangeC.min); $("#cornersMax").val(rangeC.max);
+      syncSummary();
+    });
+    $("[data-preset]").on("click", function(){
+      const p=$(this).data("preset");
+      if(p==="easy"){ rangeE={min:4,max:8};  rangeC={min:2,max:4};  pairProb=0.22; }
+      if(p==="normal"){ rangeE={min:9,max:14}; rangeC={min:5,max:8};  pairProb=0.28; }
+      if(p==="extreme"){ rangeE={min:15,max:22};rangeC={min:9,max:14}; pairProb=0.34; }
+      $("#edgesMin").val(rangeE.min); $("#edgesMax").val(rangeE.max);
+      $("#cornersMin").val(rangeC.min); $("#cornersMax").val(rangeC.max);
+      syncSummary();
+    });
+
+    $("#startBtn").on("click", startRound);
+    $("#readyBtn").on("click", onReady);
+    $("#mathCheckBtn").on("click", checkMath);
+    $("#submitRecallBtn").on("click", evaluateRecall);
+    $("#nextBtn").on("click", ()=>{ $("#results").hide(); $("#memo,#math,#recall").hide(); });
+    $("#resetBtn").on("click", resetStats);
+  });
+})(jQuery);
+</script>
+</body>
+</html>
