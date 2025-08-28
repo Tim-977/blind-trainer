@@ -13,13 +13,13 @@ When solving BLD (blindfolded) you need to **memorize long strings of letters** 
 - ✅ Lets you pick **edges only**, **corners only**, or **both**  
 - ✅ Lets you set the **length range** (min/max letters) or use presets (Easy / Normal / Extreme)  
 - ✅ Supports different **buffers** 
-- ✅ Optional **distraction task** simple math before recall (imitates a real solve distraction) 
+- ✅ Optional **distraction task** simple math problem before recall (to imitate distractions during a real solve)
 - ✅ Records **memorization time only** (from reveal → “Ready”)  
 - ✅ Tracks accuracy, full solves, and last/median/average/best memorization times  
 - ✅ Light/Dark theme toggle
 
 
-### And the main thing is that you can practice it without having a Rubik's cube with yourself, just pure memory practice
+### The best part: you can practice it without even having a Rubik’s Cube — just pure memory training
 
 ---
 
